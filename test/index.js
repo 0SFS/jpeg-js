@@ -314,3 +314,17 @@ it('errors out invalid sampling factors', function () {
   expect(() => jpeg.decode(Buffer.from('/9j/wfFR2AD/UdgA/9r/3g==', 'base64')).toThrow(
     'Invalid sampling factor, expected values above 0'))
 });
+
+// Bundlers provide CommonJS module.exports in browsers, but not Node Buffer.
+it('encodes in a CommonJS browser without Buffer', function () {
+  var vm = require('vm');
+  var source = fs.readFileSync(path.join(__dirname, '../lib/encoder.js'), 'utf8');
+  var context = { module: { exports: {} }, Uint8Array: Uint8Array };
+  vm.runInNewContext(source, context);
+  var encoded = context.module.exports({ width: 1, height: 1, data: new Uint8Array([32, 64, 128, 255]) }, 92);
+  expect(encoded.data).toBeInstanceOf(Uint8Array);
+  expect(Array.from(encoded.data.slice(0, 2))).toEqual([255, 216]);
+  var decoded = jpeg.decode(encoded.data, { useTArray: true });
+  expect(decoded.width).toBe(1);
+  expect(decoded.height).toBe(1);
+});
